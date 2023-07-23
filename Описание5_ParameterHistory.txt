@@ -1,0 +1,209 @@
+Нужно создать приложение Config с двумя моделями:
+
+ 1. Модель Parameter
+ 2. Модель ParameterHistory
+
+При создании или изменении экземпляра модели parameters в ParameterHistory должна сохраняться история
+Нужно передавать по запросу от приложения все активные значения параметров в формате:
+
+[
+ {
+  "name": "number_of_free_tales",
+  "values": ["2 stories", "4 stories"],
+ },
+ {
+  "name": "pricing",
+  "values": ["standard", "double-standard"],
+ },
+]
+
+
+Запрос для chatGPT чтобы понять как работаю сигналы:
+«Напиши пример использования сигнала post_save в Django»
+Либо: «Я хочу реализовать сохранение любого изменения одной модели в том числе создания, путем создания записей в другой модели»
+Либо вообще широко (тут могут быть новые решения от chatgpt): «Как сохранять любое изменение модели в Django? Например будет меняться поле is_active и мне нужно понимать в какой день на какое значение оно поменялось. Как это сделать?»
+----------------------------
+В папке Проекты/KidReeds создаем папку 5_ParameterHistory
+Переходим в терминале в 5_ParameterHistory
+cd /путь к папке 5_ParameterHistory
+
+Внутри папки создадем виртуальное окружение
+python3.8 -m venv venv
+source venv/bin/activate
+python --version
+
+Устанавливаем джанго
+pip install dango
+pip install --upgrade pip
+
+Создаем файл requirements.txt в котором будут храниться все зависимости
+pip freeze > requirements.txt
+Обновление зависимостей
+pip install -r requirements.txt
+
+Создаем проект
+django-admin startproject ParameterHistory
+cd ParameterHistory
+
+Создаем приложение
+python manage.py startapp Config
+Ошибка - не видит джанго. Пробуем импортировать в папке проекта
+pip install dango
+python manage.py startapp Config
+Опять ошибка, не видит
+
+Открываем в пайчарме проект ParameterHistory
+Успеваем в открывшемся окошке поменять Пайтон 3.9 на 3.8
+Ждем переустановки внизу справа
+
+В терминале пайчарма переходим в папку проекта 5_ParameterHistory
+cd ..
+Активируем Вирт окружение
+source venv/bin/activate
+Переходим в папку проекта ParameterHistory
+cd ParameterHistory
+python -m pip install Django
+Создаем приложение
+python manage.py startapp Config
+
+Проверяем версию
+python --version
+-----------------------
+В файле settings
+
+INSTALLED_APPS = [
+    'Config',
+]
+
+#<- добавь русскую локализацию
+LANGUAGE_CODE = 'ru-ru'
+---------------------
+Прописываем ДебагКонфигуратор	runserver
+Запуск проекта нажимаем жука	OK
+--------------
+Установка Django Rest Framework
+cd ParameterHistory
+pip install djangorestframework
+pip install djangorestframework-simplejwt
+pip install django-cors-headers
+-----------------
+идем в файл settings.py и добавляем настройки для всего что мы установили
+
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'rest_framework', #<- добавьте это
+    'core'
+]
+
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware', #<- добавьте это именно сюда
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+#настройки rest framework
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework_simplejwt.authentication.JWTAuthentication"],
+    "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    "TEST_REQUEST_DEFAULT_FORMAT": "json",
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.DjangoModelPermissions",),
+}
+---------------
+Работа с Моделью
+Приложение DB Brouser for SQLite установлено
+Создаем class Parameter(models.Model), копируем базу из проекта 4_KeyDefinder
+Прописываем нужные атрибуты и их типы
+
+python3 manage.py makemigrations
+python3 manage.py migrate
+----------
+Создание сериализатора
+внутри нашего приложения создадим файл Config/serializers.py
+копируем базу из проекта 4_KeyDefinder
+-------------------
+Создаем views.py	 и url 
+копируем необходимое из проекта 4_KeyDefinder, без аутоитентификации
+--------------------
+Открываем Postman, добавляем название проекта ParameterHistory, настраиваем по проекту 4_KeyDefinder
+формируем запрос, отправляем json записи на 
+http://127.0.0.1:8000/messages/
+Проверяем появление записей в DB Brouser for SQLite
+Работает!
+-----------------------
+Консультируемся с ИИ по сохранению истории создания, изменения и удаления экземпляров класса Parameter.
+Предлагает через создание модели ParameterHistory.
+Ряд последовательных изменений кода, консультации с ИИ.
+Получаем работающий код. Все ОК
+
+Создание экземпляра Parameter
+По url http://127.0.0.1:8000/parameter/ пост запрос с json
+{
+ "user": "user13",
+ "option": "option12",
+ "value": "value11",
+ "created_day": "2023-07-23",
+ "is_active": "True"
+}
+Формирует экземпляр Parameter
+{
+    "id": 12,
+    "user": "user13",
+    "option": "option12",
+    "value": "value11",
+    "created_day": "2023-07-23T00:00:00Z",
+    "version": 1,
+    "deleted_day": null
+}
+
+Изменение и удаления экземпляров класса Parameter
+По http://127.0.0.1:8000/parameter/id экземпляра
+Можно получить экземпляр, поменять его атрибут, удалить - запросами GET, PATCH, DELETE
+Проверено через Постмен
+
+В модели ParameterHistory будут создаваться записи на каждое действие.
+------------------------------------
+Следующий желаемый шаг.
+Автоматическое удаление экземпляра Parameter по истечении времени подписки, период времени определяется атрибутом "value" в экземпляре.
+
+Вопрос к ИИ.
+Ответ - достаточно нетривиальное изменение кода с помощью Celery и Django-события (Django signals).
+Сложновастенько, пока не трогаем
+-----------------------
+Выкладка в гитхаб 
+Терминал - в папке 5_ParameterHistory 	
+git init .
+Создаем .gitignore
+nano .gitignore
+
+чатGPT.txt
+/venv
+.idea/
+__pycache__/
+		Ctrl + o и Enter сохранениеç
+		Ctrl + x и Y и Enter выход
+		выйти из редактора - напечатайте :qa и нажмите enter.
+cat .gitignore
+
+git add .
+git commit -m '3 commit'
+
+Гитхаб
+Создаем репозитарий 5_ParameterHistory
+Терминал
+git remote add origin git@github.com:lemon1964/5_ParameterHistory
+git branch -M main
+git push -u origin main
+
+https://github.com/lemon1964/5_ParameterHistory
+ 
